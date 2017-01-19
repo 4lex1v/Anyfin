@@ -18,41 +18,38 @@ import scala.collection.immutable.Seq
 class constr[T] extends StaticAnnotation {
 
   inline def apply (defn: Any): Any = meta {
-    val q"new $_[$tparams]()" = this
-
-    val targ"$tname[..$params]" = tparams
-
-
-    def paramssToArgs(paramss: Seq[Seq[Term.Param]]): Seq[Seq[Term.Arg]] = {
-      paramss.map(_.map(p => Term.Name(p.name.value)))
-    }
+    val (dtType, dtParams) = constr.extractDataType(this)
 
     defn match {
-      case cls @ Defn.Class(mods, name, tparams, ctor @ Ctor.Primary(_, cname, args), body @ Template(early, parents, self, stats)) =>
-        val newMods = Seq(Mod.Sealed(), Mod.Abstract(), Mod.Case())
+      case Defn.Class(_, name, tparams, ctor, _) =>
 
-        val parentDataType: Ctor.Call = Term.ApplyType(Ctor.Ref.Name(tname.toString()), params)
+        /** Generating proper case class */
+        val newMods        = Seq(Mod.Sealed(), Mod.Abstract(), Mod.Case())
+        val parentDataType = Term.ApplyType(Ctor.Ref.Name(dtType.toString()), dtParams)
 
-        val outer = Name.Indeterminate(tname.toString())
+        val ctorClass = q"..$newMods class $name[..$tparams] private (...${ctor.paramss}) extends $parentDataType {}"
 
-        Defn.Def(
-          Seq(Mod.Private(Name.Indeterminate(tname.toString()))),
-          Term.Name("apply"),
-          Seq.empty,
-          Seq.empty,
-          Some(Type.Apply(tname, params)),
-          Term.Block(Seq.empty)
-        )
+        /** Generating companion object */
 
-        val retType = Type.Apply(tname, params)
+        // Constructor class call tree
+        val ctorName      = Ctor.Ref.Name(name.toString())
+        val classCtorCall = q"new $ctorName(...${constr.paramssToArgs(ctor.paramss)}) {}"
 
-        val ctorName = Ctor.Ref.Name(name.toString())
-        val apply = q"private[$outer] def apply[..$tparams](...$args): $retType = new $ctorName(...${paramssToArgs(args)}) {}"
+        // `apply` function
+        val scope     = Name.Indeterminate(dtType.toString())
+        val retType   = Type.Apply(dtType, dtParams)
+        val applyFunc = q"private[$scope] def apply[..$tparams](...${ctor.paramss}): $retType = $classCtorCall"
 
-        Term.Block(Seq(
-          q"..$newMods class $name[..$tparams] (...$args) extends $parentDataType {}",
-          q"object ${Term.Name(name.toString())} { $apply }"
-        ))
+        // Companion object
+        val classCompObj = q"object ${Term.Name(name.toString())} { $applyFunc }"
+
+        Term.Block(Seq(ctorClass, classCompObj))
+
+      case _ ⇒  abort("bad @constr annotation application, please check the docs")
+    }
+  }
+}
+
 object constr {
 
 
