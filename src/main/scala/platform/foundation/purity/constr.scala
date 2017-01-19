@@ -32,7 +32,12 @@ class constr extends StaticAnnotation {
         }
 
         // TODO :: `case class` generates too much garbage, should work with plain classes istead.
-        val CLASS = q"sealed abstract case class ${Type.Name(mangledClassName)}[..$tparams](...$paramss) extends $dataType {}"
+        val pubParams = {
+          val h = paramss.head.map(_.copy(mods = Seq(Mod.ValParam())))
+          h +: paramss.tail
+        }
+
+        val CLASS = q"final class ${Type.Name(mangledClassName)}[..$tparams](...$pubParams) extends $dataType {}"
 
         /** GENERATING CONSTRUCTOR */
 
@@ -40,17 +45,21 @@ class constr extends StaticAnnotation {
 
         val ctorName      = Ctor.Ref.Name(mangledClassName)
         val classCtorCall = {
-          if (tps.nonEmpty) q"new $ctorName[..$tps](...${constr.paramssToArgs(paramss)}) {}"
-          else q"new $ctorName(...${constr.paramssToArgs(paramss)}) {}"
+          if (tps.nonEmpty) q"new $ctorName[..$tps](...${constr.paramssToArgs(paramss)})"
+          else q"new $ctorName(...${constr.paramssToArgs(paramss)})"
         }
         val FUNC = Defn.Def(mods, fName, tparams, paramss, Some(retType), classCtorCall)
+
+        /** DECONSTRUCTOR */
+        val unApply = constr.genUnapply(CLASS)
+        val OBJECT = q"object $fName { $unApply }"
 
         /**
          * TODO :: custom unapply generator.
          * The following creates an `abstract case class`, which generates `unapply` without `apply`. It's
          * OK for now to go this path, though this solution has downsides generating garbage for `case` classes.
          */
-        Term.Block(Seq(CLASS, FUNC))
+        Term.Block(Seq(FUNC, CLASS, OBJECT))
 
       case other ⇒
         abort(s"@constr annotation can be applied to functions only, got: $other")
