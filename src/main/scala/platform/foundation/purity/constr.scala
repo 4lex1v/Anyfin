@@ -25,16 +25,14 @@ class constr extends StaticAnnotation {
 
         /** GENERATING CLASS */
         val mangledClassName = "$constr$$" + name
-        val mangledClassNameT = Type.Name(mangledClassName)
 
-        val dataType: Ctor.Call = retType match {
-          case Type.Apply(tname, targs) ⇒
-            Term.ApplyType(Ctor.Ref.Name(tname.toString()),targs)
-          case Type.Name(tname) ⇒
-            Term.Apply(Ctor.Ref.Name(tname), Seq.empty)
+        val dataType = retType match {
+          case Type.Name(tname) ⇒ Term.Apply(Ctor.Ref.Name(tname), Seq.empty)
+          case Type.Apply(tname, targs) ⇒ Term.ApplyType(Ctor.Ref.Name(tname.toString()),targs)
         }
 
-        val CLASS = q"sealed abstract case class $mangledClassNameT[..$tparams](...$paramss) extends $dataType {}"
+        // TODO :: `case class` generates too much garbage, should work with plain classes istead.
+        val CLASS = q"sealed abstract case class ${Type.Name(mangledClassName)}[..$tparams](...$paramss) extends $dataType {}"
 
         /** GENERATING CONSTRUCTOR */
 
