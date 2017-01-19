@@ -18,53 +18,80 @@ import scala.collection.immutable.Seq
  */
 @compileTimeOnly("@constr[T] expansion failed. Please check that the Paradise plugin enabled.")
 class constr extends StaticAnnotation {
-  inline def apply(defn: Any): Any = meta {
-    defn match {
+
+  /**
+   * @param funcDecl annotated function declaration (abstract function without body)
+   * @return
+   */
+  inline def apply(funcDecl: Any): Any = meta {
+    funcDecl match {
       case Decl.Def(mods, fName @ Term.Name(name), tparams, paramss, retType) ⇒
         if (mods.nonEmpty) abort("modifiers not allowed")
 
-        /** GENERATING CLASS */
-        val mangledClassName = "$constr$$" + name
+        // generate object with a private class as a shape, apply and unapply functions
+        // generate: module, inner private class, apply, unapply
 
+        val mangledName = "$constr$" + name
+
+        /** GENERATING DATATYPE'S SHAPE*/
+
+        // Used as a parent type.
         val dataType = retType match {
-          case Type.Name(tname) ⇒ Term.Apply(Ctor.Ref.Name(tname), Seq.empty)
-          case Type.Apply(tname, targs) ⇒ Term.ApplyType(Ctor.Ref.Name(tname.toString()),targs)
+          case Type.Name(name) ⇒ Term.Apply(Ctor.Ref.Name(name), Seq.empty)
+          case Type.Apply(constr, args) ⇒ Term.ApplyType(Ctor.Ref.Name(constr.toString()), args)
         }
 
-        // TODO :: `case class` generates too much garbage, should work with plain classes istead.
-        val pubParams = {
-          val h = paramss.head.map(_.copy(mods = Seq(Mod.ValParam())))
-          h +: paramss.tail
+        val MONKEY: Stat = {
+          if (paramss.nonEmpty) {
+            /** GENERATE CLASS-BASED SHAPE */
+
+            // Similar to case classes we need to make params from the first parameters list
+            // declared as `val`'s to be available during decostruction.
+            val pubParams = {
+              val h = paramss.head.map(_.copy(mods = Seq(Mod.ValParam())))
+              h +: paramss.tail
+            }
+
+            val className = Type.Name(mangledName)
+            q"private final class ${className}[..$tparams](...$pubParams) extends $dataType {}"
+          } else {
+            /** GENERATE OBJECT-BASED SHAPE */
+            val objectName = Term.Name(mangledName)
+            q"private object $objectName extends $dataType {}"
+          }
         }
 
-        val CLASS = q"final class ${Type.Name(mangledClassName)}[..$tparams](...$pubParams) extends $dataType {}"
+        //def APPLY = constr.genApply(MONKEY)
 
         /** GENERATING CONSTRUCTOR */
 
         val tps = tparams.map(p ⇒ Type.Name(p.name.value))
 
-        val ctorName      = Ctor.Ref.Name(mangledClassName)
+        val ctorName      = Ctor.Ref.Name(mangledName)
         val classCtorCall = {
           if (tps.nonEmpty) q"new $ctorName[..$tps](...${constr.paramssToArgs(paramss)})"
           else q"new $ctorName(...${constr.paramssToArgs(paramss)})"
         }
-        val FUNC = Defn.Def(mods, fName, tparams, paramss, Some(retType), classCtorCall)
+        val APPLY = MONKEY match {
+          case cls: Defn.Class =>
+            Defn.Def(mods, Term.Name("apply"), tparams, paramss, Some(retType), classCtorCall)
+          case obj: Defn.Object =>
+            Defn.Def(mods, Term.Name("apply"), tparams, paramss, Some(retType), Term.Name(mangledName))
+        }
 
-        /** DECONSTRUCTOR */
-        val unApply = constr.genUnapply(CLASS)
-        val OBJECT = q"object $fName { $unApply }"
-
-        /**
-         * TODO :: custom unapply generator.
-         * The following creates an `abstract case class`, which generates `unapply` without `apply`. It's
-         * OK for now to go this path, though this solution has downsides generating garbage for `case` classes.
-         */
-        Term.Block(Seq(FUNC, CLASS, OBJECT))
+        MONKEY match {
+          case obj: Defn.Object =>
+            q"object $fName { $MONKEY; $APPLY }"
+          case cls: Defn.Class =>
+            val UNAPPLY = constr.genUnapply(cls)
+            q"object $fName { $MONKEY; $UNAPPLY; $APPLY }"
+        }
 
       case other ⇒
         abort(s"@constr annotation can be applied to functions only, got: $other")
     }
   }
+
 }
 
 object constr {
