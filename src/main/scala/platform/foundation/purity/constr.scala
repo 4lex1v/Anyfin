@@ -14,7 +14,7 @@ import scala.collection.immutable.Seq
  *   }
  * }}}
  */
-@compileTimeOnly("@constr[T] can only be applied to simple classes defined in the companion T's companion object")
+@compileTimeOnly("@constr[T] expansion failed. Please check that the Paradise plugin enabled.")
 class constr[T] extends StaticAnnotation {
 
   inline def apply (defn: Any): Any = meta {
