@@ -42,29 +42,30 @@ class constr extends StaticAnnotation {
         }
 
         val MONKEY: Stat = {
-          if (paramss.nonEmpty) {
+          if (tparams.isEmpty && paramss.isEmpty) {
+            /** GENERATE OBJECT-BASED SHAPE */
+            val objectName = Term.Name(mangledName)
+            q"private object $objectName extends $dataType {}"
+          } else {
             /** GENERATE CLASS-BASED SHAPE */
 
             // Similar to case classes we need to make params from the first parameters list
             // declared as `val`'s to be available during decostruction.
+
             val pubParams = {
-              val h = paramss.head.map(_.copy(mods = Seq(Mod.ValParam())))
-              h +: paramss.tail
+              if (paramss.isEmpty) Seq.empty
+              else {
+                val h = paramss.head.map(_.copy(mods = Seq(Mod.ValParam())))
+                h +: paramss.tail
+              }
             }
 
             val className = Type.Name(mangledName)
             q"private final class ${className}[..$tparams](...$pubParams) extends $dataType {}"
-          } else {
-            /** GENERATE OBJECT-BASED SHAPE */
-            val objectName = Term.Name(mangledName)
-            q"private object $objectName extends $dataType {}"
           }
         }
 
-        //def APPLY = constr.genApply(MONKEY)
-
         /** GENERATING CONSTRUCTOR */
-
         val tps = tparams.map(p ⇒ Type.Name(p.name.value))
 
         val ctorName      = Ctor.Ref.Name(mangledName)
@@ -112,17 +113,24 @@ object constr {
 
     val fieldCalls = unapplier.monkey(paramName, cls)
 
-    val elsetree =
-      if (fieldCalls.length > 1) q"Some(${Term.Tuple(fieldCalls)})"
-      else q"Some(${fieldCalls.head})"
-
-    q"def unapply[..${cls.tparams}]($cparam) = if ($paramName == null) None else $elsetree"
+    if (fieldCalls.length > 1) {
+      val elsetree = q"Some(${Term.Tuple(fieldCalls)})"
+      q"def unapply[..${cls.tparams}]($cparam) = if ($paramName == null) None else $elsetree"
+    } else if (fieldCalls.length == 1) {
+      val elsetree = q"Some(${fieldCalls.head})"
+      q"def unapply[..${cls.tparams}]($cparam) = if ($paramName == null) None else $elsetree"
+    } else {
+      q"def unapply[..${cls.tparams}]($cparam) = if ($paramName == null) false else true"
+    }
   }
 
   private object unapplier {
     def monkey(name: Term.Name, cls: Defn.Class): Seq[Term.Select] = {
-      val fields = cls.ctor.paramss.head.map { _.name }
-      fields.map { fieldName ⇒ Term.Select(name, Term.Name(fieldName.value)) }
+      if (cls.ctor.paramss.isEmpty) Seq.empty
+      else {
+        val fields = cls.ctor.paramss.head.map { _.name }
+        fields.map { fieldName ⇒ Term.Select(name, Term.Name(fieldName.value)) }
+      }
     }
   }
 
