@@ -53,9 +53,37 @@ class constr[T] extends StaticAnnotation {
           q"..$newMods class $name[..$tparams] (...$args) extends $parentDataType {}",
           q"object ${Term.Name(name.toString())} { $apply }"
         ))
+object constr {
 
-      case _ ⇒
-        abort("annotation works only with simple classes")
+
+  /**
+   * Extract provided data type and its parameters from the annotation.
+   * Example:
+   *   Given the following code:
+   *   {{{
+   *     @constr[Foo[A, B]] class Bar[A, B]
+   *   }}}
+   *
+   *   [[extractDataType(annot)]] returns a tuple (Foo, Seq(A, B))
+   *
+   * @param annotation reference to the `@constr` annotation tree
+   * @return a pair of type, for the data type and it's type parameters
+   */
+  def extractDataType(annotation: Stat): (Type, Seq[Type]) = {
+    annotation match {
+      case q"new $_[$targ]()" ⇒
+        targ match {
+          case targ"$tname[..$params]" ⇒ (tname, params)
+        }
+      case _ => abort("@constr annotation expect single type argument")
     }
   }
+
+  /**
+   * Convenient way to convert parameters into arguments
+   */
+  def paramssToArgs(paramss: Seq[Seq[Term.Param]]): Seq[Seq[Term.Arg]] = {
+    paramss.map(_.map(p => Term.Name(p.name.value)))
+  }
+
 }
