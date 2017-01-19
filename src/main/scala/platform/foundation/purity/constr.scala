@@ -8,79 +8,66 @@ import scala.collection.immutable.Seq
  * Example:
  *
  * {{{
- *   sealed trait SomeType[A]   
+ *   sealed trait SystemCall[A]
  *   object SomeType {
- *     @constr[SomeType[A]] class Subclass[A] (value: A)
+ *     @constr def FinaWindow (app: Application): SystemCall[Option[Window]]
+ *     @constr def Snapshot   (window: Window)  : SystemCall[Frame]
+ *     @constr def Foo[A]     (value: A)        : SystemCall[A]
  *   }
  * }}}
  */
 @compileTimeOnly("@constr[T] expansion failed. Please check that the Paradise plugin enabled.")
-class constr[T] extends StaticAnnotation {
-
-  inline def apply (defn: Any): Any = meta {
-    val (dtType, dtParams) = constr.extractDataType(this)
-
+class constr extends StaticAnnotation {
+  inline def apply(defn: Any): Any = meta {
     defn match {
-      case Defn.Class(_, name, tparams, ctor, _) =>
+      case Decl.Def(mods, fName @ Term.Name(name), tparams, paramss, retType) ⇒
+        if (mods.nonEmpty) abort("modifiers not allowed")
 
-        /** Generating proper case class */
-        val newMods        = Seq(Mod.Sealed(), Mod.Abstract(), Mod.Case())
-        val parentDataType = Term.ApplyType(Ctor.Ref.Name(dtType.toString()), dtParams)
+        /** GENERATING CLASS */
+        val mangledClassName = "$constr$$" + name
+        val mangledClassNameT = Type.Name(mangledClassName)
 
-        val ctorClass = q"..$newMods class $name[..$tparams] private (...${ctor.paramss}) extends $parentDataType {}"
+        val dataType: Ctor.Call = retType match {
+          case Type.Apply(tname, targs) ⇒
+            Term.ApplyType(Ctor.Ref.Name(tname.toString()),targs)
+          case Type.Name(tname) ⇒
+            Term.Apply(Ctor.Ref.Name(tname), Seq.empty)
+        }
 
-        /** Generating companion object */
+        val CLASS = q"sealed abstract case class $mangledClassNameT[..$tparams](...$paramss) extends $dataType {}"
 
-        // Constructor class call tree
-        val ctorName      = Ctor.Ref.Name(name.toString())
-        val classCtorCall = q"new $ctorName(...${constr.paramssToArgs(ctor.paramss)}) {}"
+        /** GENERATING CONSTRUCTOR */
 
-        // `apply` function
-        val scope     = Name.Indeterminate(dtType.toString())
-        val retType   = Type.Apply(dtType, dtParams)
-        val applyFunc = q"private[$scope] def apply[..$tparams](...${ctor.paramss}): $retType = $classCtorCall"
+        val tps = tparams.map(p ⇒ Type.Name(p.name.value))
 
-        // Companion object
-        val classCompObj = q"object ${Term.Name(name.toString())} { $applyFunc }"
+        val ctorName      = Ctor.Ref.Name(mangledClassName)
+        val classCtorCall = {
+          if (tps.nonEmpty) q"new $ctorName[..$tps](...${constr.paramssToArgs(paramss)}) {}"
+          else q"new $ctorName(...${constr.paramssToArgs(paramss)}) {}"
+        }
+        val FUNC = Defn.Def(mods, fName, tparams, paramss, Some(retType), classCtorCall)
 
-        Term.Block(Seq(ctorClass, classCompObj))
+        /**
+         * TODO :: custom unapply generator.
+         * The following creates an `abstract case class`, which generates `unapply` without `apply`. It's
+         * OK for now to go this path, though this solution has downsides generating garbage for `case` classes.
+         */
+        Term.Block(Seq(CLASS, FUNC))
 
-      case _ ⇒  abort("bad @constr annotation application, please check the docs")
+      case other ⇒
+        abort(s"@constr annotation can be applied to functions only, got: $other")
     }
   }
 }
 
 object constr {
 
-
-  /**
-   * Extract provided data type and its parameters from the annotation.
-   * Example:
-   *   Given the following code:
-   *   {{{
-   *     @constr[Foo[A, B]] class Bar[A, B]
-   *   }}}
-   *
-   *   [[extractDataType(annot)]] returns a tuple (Foo, Seq(A, B))
-   *
-   * @param annotation reference to the `@constr` annotation tree
-   * @return a pair of type, for the data type and it's type parameters
-   */
-  def extractDataType(annotation: Stat): (Type, Seq[Type]) = {
-    annotation match {
-      case q"new $_[$targ]()" ⇒
-        targ match {
-          case targ"$tname[..$params]" ⇒ (tname, params)
-        }
-      case _ => abort("@constr annotation expect single type argument")
-    }
-  }
-
   /**
    * Convenient way to convert parameters into arguments
    */
   def paramssToArgs(paramss: Seq[Seq[Term.Param]]): Seq[Seq[Term.Arg]] = {
     paramss.map(_.map(p => Term.Name(p.name.value)))
+
   }
 
 }
