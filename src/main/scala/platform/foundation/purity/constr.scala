@@ -65,7 +65,29 @@ object constr {
    */
   def paramssToArgs(paramss: Seq[Seq[Term.Param]]): Seq[Seq[Term.Arg]] = {
     paramss.map(_.map(p => Term.Name(p.name.value)))
+  }
 
+  def genUnapply(cls: Defn.Class): Defn.Def = {
+    val paramName = Term.fresh("x")
+
+    val cparamt = if (cls.tparams.nonEmpty) Type.Apply(cls.name, cls.tparams.map(x ⇒ Type.Name(x.name.value))) else cls.name
+
+    val cparam = Term.Param(Seq.empty, paramName, Some(cparamt), None)
+
+    val fieldCalls = unapplier.monkey(paramName, cls)
+
+    val elsetree =
+      if (fieldCalls.length > 1) q"Some(${Term.Tuple(fieldCalls)})"
+      else q"Some(${fieldCalls.head})"
+
+    q"def unapply[..${cls.tparams}]($cparam) = if ($paramName == null) None else $elsetree"
+  }
+
+  private object unapplier {
+    def monkey(name: Term.Name, cls: Defn.Class): Seq[Term.Select] = {
+      val fields = cls.ctor.paramss.head.map { _.name }
+      fields.map { fieldName ⇒ Term.Select(name, Term.Name(fieldName.value)) }
+    }
   }
 
 }
