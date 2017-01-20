@@ -8,22 +8,31 @@ import scala.collection.immutable.Seq
 class dataType extends StaticAnnotation {
   inline def apply(defn: Any): Any = meta {
     defn match {
+      case Term.Block(Seq(trt: Defn.Trait, obj: Defn.Object)) =>
+        val newBody = dataType.annotate(trt.templ)
+        Term.Block(Seq(
+          q"sealed trait ${trt.name}[..${trt.tparams}]",
+          Defn.Object(Seq.empty, obj.name, newBody)
+        ))
       case Defn.Trait(mods, name, tparams, ctor, body) =>
-        val nb = body.copy(stats = body.stats.map { stats =>
-          stats.map {
-            case Decl.Def(mods, fName @ Term.Name(name), tparams, paramss, retType) =>
-              q"@constr def $fName[..$tparams](...$paramss): $retType"
-          }
-        })
-
+        val newBody = dataType.annotate(body)
         Term.Block(Seq(
           q"sealed trait $name[..$tparams]",
-          Defn.Object(Seq.empty, Term.Name(name.value), body)
+          Defn.Object(Seq.empty, Term.Name(name.value), newBody)
         ))
-      case slf @ Term.Block(Seq(trt: Defn.Trait, obj: Defn.Object)) =>
-        defn
       case _ =>
         abort("@dataType annotation can be used with traits only")
     }
+  }
+}
+
+object dataType {
+  def annotate(body: Template) = {
+    body.copy(stats = body.stats.map { stats =>
+      stats.map {
+        case Decl.Def(mods, fName @ Term.Name(name), tparams, paramss, retType) =>
+          q"@constr def $fName[..$tparams](...$paramss): $retType"
+      }
+    })
   }
 }
