@@ -1,4 +1,4 @@
-package platform.foundation.purity
+package purity
 
 import scala.annotation.{StaticAnnotation, compileTimeOnly}
 import scala.meta._
