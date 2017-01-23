@@ -1,3 +1,9 @@
+
+// Release configuration
+releaseIgnoreUntrackedFiles := true
+releaseVersionBump := sbtrelease.Version.Bump.Next
+
+// Publish configurations
 publishArtifact in Test := false
 publishMavenStyle := true
 
