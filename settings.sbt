@@ -2,7 +2,7 @@ import scala.Console.{GREEN, RESET}
 
 name         := "Anyfin"
 organization := "io.github.4lex1v"
-description  := "Improving FP experience with Metaprogramming"
+description  := "Opinionated way to improving FP experience with Metaprogramming"
 
 scalaVersion := "2.11.8"
 scalaOrganization := "org.typelevel"
