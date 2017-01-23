@@ -1,4 +1,6 @@
 * Anyfin
   [[https://travis-ci.org/4lex1v/anyfin][https://travis-ci.org/4lex1v/anyfin.svg?branch=develop]]
+  [[https://codecov.io/gh/4lex1v/anyfin?branch=develop][https://codecov.io/gh/4lex1v/anyfin/branch/develop/graph/badge.svg?branch=develop]]
+
 
   Improving FP experience with Metaprogramming
