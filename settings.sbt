@@ -1,10 +1,11 @@
 import scala.Console.{GREEN, RESET}
 
-name        := "Anyfin"
-description := "Improving FP experience with Metaprogramming"
+name         := "Anyfin"
+organization := "io.github.4lex1v"
+description  := "Improving FP experience with Metaprogramming"
 
 scalaVersion := "2.11.8"
-organization := "org.typelevel"
+scalaOrganization := "org.typelevel"
 
 resolvers += Resolver.url("scalameta", url("http://dl.bintray.com/scalameta/maven"))(Resolver.ivyStylePatterns)
 libraryDependencies ++= Seq(
