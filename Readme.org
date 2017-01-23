@@ -1,2 +1,4 @@
 * Anyfin
+  [[https://travis-ci.org/4lex1v/anyfin][https://travis-ci.org/4lex1v/anyfin.svg?branch=develop]]
+
   Improving FP experience with Metaprogramming
