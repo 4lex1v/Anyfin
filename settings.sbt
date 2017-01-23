@@ -14,7 +14,6 @@ libraryDependencies ++= Seq(
 
 scalacOptions ++= Seq(
   "-language:_",
-  "-target:jvm-1.8",
   "-Xplugin-require:macroparadise"
 )
 
