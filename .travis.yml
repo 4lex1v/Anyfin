@@ -4,12 +4,15 @@ scala:
 jdk:
   - oraclejdk8
 
-script: sbt ++$TRAVIS_SCALA_VERSION test
+script: sbt ++$TRAVIS_SCALA_VERSION clean coverage test coverageReport
 
 cache:
   directories:
   - $HOME/.sbt
   - $HOME/.ivy2  
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
 
 notifications:
   email: false
