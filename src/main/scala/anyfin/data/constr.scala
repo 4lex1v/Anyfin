@@ -176,10 +176,6 @@ private[anyfin] object constr {
      * @param paramss
      * @return
      */
-    // def build (name: String, tparams: Seq[Type.Param], paramss: Paramss): Defn.Def = {
-      
-    // }
-
     dataShape match {
       case obj: Defn.Object ⇒ None
       case q"..$_ class $name[..$tparams](...$paramss) extends $dataType {}" if paramss.length < 1 ⇒
