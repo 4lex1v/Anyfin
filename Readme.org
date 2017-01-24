@@ -3,4 +3,8 @@
   [[https://opensource.org/licenses/Apache-2.0][https://img.shields.io/badge/License-Apache%202.0-blue.svg]]
   [[https://bintray.com/4lex1v/snapshots/anyfin/_latestVersion][https://api.bintray.com/packages/4lex1v/snapshots/anyfin/images/download.svg]]
 
-  Improving FP experience with Metaprogramming
+** Overview
+   *Anyfin* is a library which provides annotations to help you build solid, functional code.
+
+*** The Purpose
+    To bring powerfull constraints inspired by the Haskell language into Scala.
