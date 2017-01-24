@@ -1,5 +1,7 @@
 import de.heikoseeberger.sbtheader.license.Apache2_0
 
+enablePlugins(AutomateHeaderPlugin)
+
 // License information
 headers := Map(
   "scala" -> Apache2_0("2017", "Aleksandr Ivanov"),
