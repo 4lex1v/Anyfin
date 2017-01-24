@@ -1,5 +1,6 @@
 package anyfin.utils
 
+import scala.collection.immutable.Seq
 import scala.meta._
 
 object TypeFuncs {
@@ -32,6 +33,15 @@ object TypeFuncs {
       }
     }
     loop(mods)
+  }
+
+  /**
+   * Convenient way to convert parameters into arguments
+   *
+   * @param paramss
+   */
+  def paramssToArgs(paramss: Seq[Seq[Term.Param]]): Seq[Seq[Term.Arg]] = {
+    paramss.map(_.map(p => Term.Name(p.name.value)))
   }
 
 }
