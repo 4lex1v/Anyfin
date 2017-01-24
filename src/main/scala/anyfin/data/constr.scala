@@ -41,7 +41,7 @@ object constr {
    * @return
    */
   def expand (funcDecl: Decl.Def): Defn.Object = {
-    import funcDecl.{mods, name, decltpe ⇒ retType}
+    val q"..$mods def $name[..$tparams](...$paramss): $retType" = funcDecl
 
     if (mods.nonEmpty)
       abort(mods.head.pos, "@constr annotation doesn't support modifiers")
@@ -65,7 +65,7 @@ object constr {
     val dataType = inferDataType(retType)
 
     // Internally class or object
-    val dataShape = genDataShape("$constr$" + name, funcDecl, dataType)
+    val dataShape = genDataShape("$constr$" + name, tparams, paramss, dataType)
 
     // Apply function
     val constructor = genDataConstructor(dataShape)
@@ -90,9 +90,7 @@ object constr {
    * @param decl
    * @return
    */
-  def genDataShape(name: String, decl: Decl.Def, dataType: Ctor.Call): Stat = {
-    import decl.{paramss, tparams, decltpe ⇒ retType}
-
+  def genDataShape(name: String, tparams: TParams, paramss: Paramss, dataType: Ctor.Call): Stat = {
     // If declaration has no type variables and parameterless, generate simple object
     if (tparams.isEmpty && paramss.isEmpty)
       q"private object ${Term.Name(name)} extends $dataType {}"
@@ -112,22 +110,35 @@ object constr {
    * @return
    */
   def genDataConstructor (dataShape: Stat): Defn.Def = {
+    def normalize (params: Seq[Term.Param]): Seq[Term.Param] = {
+      params.map { param ⇒
+        param.copy(mods = param.collect { case m: Mod.Implicit ⇒ m })
+      }
+    }
 
-    /**
-     * @param ctorName
-     * @param tparams
-     * @param paramss
-     * @return
-     */
-    def build (ctorName: Ctor.Call, tparams: TParams, paramss: Paramss): Term.New = {
-      val typeVars = tparams.map(p ⇒ Type.Name(p.name.value))
-      q"new $ctorName[..$typeVars](...${paramssToArgs(paramss)})"
+    def inferResultType (ctor: Ctor.Call): Type = ctor match {
+      case Term.ApplyType(Ctor.Ref.Name(constr), args) ⇒ Type.Apply(Type.Name(constr), args)
+      case Term.Apply(Ctor.Ref.Name(name), _) ⇒ Type.Name(name)
+      case other ⇒ abort(s"$other can't be user as a return type")
     }
 
     dataShape match {
-      case q"..$_ object $_ extends $retType {}" ⇒ q"def apply() = ${build(retType, Seq.empty, Seq.empty)}"
-      case q"..$_ class $_[..$tparams](...$paramss) extends $retType {}" ⇒
-        q"def apply[..$tparams](...$paramss) = ${build(retType, tparams, paramss)}"
+      case q"..$_ object $name extends $retType {}" ⇒
+        q"def apply(): ${inferResultType(retType)} = $name"
+
+      case q"..$_ class $name[..$tparams](...$paramss) extends $retType {}" if paramss.length < 1 ⇒
+        // The same requirement to have a param list for classes
+        abort("classes without parameter list are not allowed")
+
+      case q"..$_ class $name[..$tparams](...$paramss) extends $retType {}" ⇒
+        val normalized = paramss.map(normalize)
+        val impl = {
+          val typeVars = tparams.map(p ⇒ Type.Name(p.name.value))
+          if (tparams.nonEmpty) q"new ${Ctor.Ref.Name(name.value)}[..$typeVars](...${paramssToArgs(paramss)})"
+          else q"new ${Ctor.Ref.Name(name.value)}(...${paramssToArgs(paramss)})"
+        }
+
+        q"def apply[..$tparams](...$normalized): ${inferResultType(retType)} = $impl"
     }
   }
 
