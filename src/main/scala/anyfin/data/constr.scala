@@ -46,7 +46,7 @@ class constr extends StaticAnnotation {
   }
 }
 
-object constr {
+private[anyfin] object constr {
 
   /** TYPE ALIASES */
   type TParams = Seq[Type.Param]
