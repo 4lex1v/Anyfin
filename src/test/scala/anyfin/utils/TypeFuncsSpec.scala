@@ -19,7 +19,6 @@ package anyfin.utils
 import org.scalatest.{Matchers, WordSpec}
 import anyfin.Equalities._
 import anyfin.utils.TypeFuncs._
-
 import scala.meta._
 
 class TypeFuncsSpec extends WordSpec with Matchers {
