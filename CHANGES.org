@@ -1,0 +1,7 @@
+* Version 0.1.0
+#+BEGIN_QUOTE
+25 January 2017
+#+END_QUOTE
+
+This is the first usable version that introduces the first basic annotation: =@constr=. 
+
