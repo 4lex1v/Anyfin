@@ -158,13 +158,19 @@ object constr {
      * @return
      */
     def build(name: String, tparams: Seq[Type.Param], paramss: Paramss): Defn.Def = {
-      def template(ifBranch: Term = Term.Name("None"), elseBranch: Term) =
-        q"def unapply[..$tparams](shape: ${Type.Name(name)}) = if (shape == null) $ifBranch else $elseBranch"
+      def template(ifBranch: Term = Term.Name("None"), elseBranch: Term) = {
+        val shapeType = {
+          if (tparams.isEmpty) Type.Name(name)
+          else Type.Apply(Type.Name(name), tparams.map(p ⇒ Type.Name(p.name.value)))
+        }
+        q"def unapply[..$tparams](shape: $shapeType) = if (shape == null) $ifBranch else $elseBranch"
+      }
+        
 
       val fieldCalls = paramss match {
         case Seq() ⇒ Seq.empty
         case Seq(head, _*) ⇒
-          head.map(field ⇒ q"name.${Term.Name(field.name.value)}")
+          head.map(field ⇒ q"shape.${Term.Name(field.name.value)}")
       }
 
       if (fieldCalls.length > 1)
