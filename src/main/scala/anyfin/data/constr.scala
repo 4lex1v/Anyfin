@@ -1,6 +1,6 @@
 package anyfin.data
 
-import anyfin.utils.TypeFuncs.paramssToArgs
+import anyfin.utils.TypeFuncs.{paramssToArgs, tParamsToArgs}
 
 import scala.annotation.{StaticAnnotation, compileTimeOnly}
 import scala.collection.immutable.Seq
@@ -22,10 +22,8 @@ import scala.meta._
 class constr extends StaticAnnotation {
   inline def apply(tree: Any): Any = meta {
     tree match {
-      case funcDecl: Decl.Def ⇒
-        constr.expand(funcDecl)
-      case other ⇒
-        abort("@constr annotation can be used with function declarations only")
+      case funcDecl: Decl.Def ⇒ constr.expand(funcDecl)
+      case other ⇒ abort("@constr annotation can be used with function declarations only")
     }
   }
 }
@@ -90,13 +88,13 @@ private[anyfin] object constr {
    * @param decl
    * @return
    */
-  def genDataShape(name: String, tparams: TParams, paramss: Paramss, dataType: Ctor.Call): Stat = {
+  def genDataShape (name: String, tparams: TParams, paramss: Paramss, dataType: Ctor.Call): Stat = {
     // If declaration has no type variables and parameterless, generate simple object
     if (tparams.isEmpty && paramss.isEmpty)
       q"private object ${Term.Name(name)} extends $dataType {}"
     else {
       // Simulate "case class" behaviour
-      val params = {
+      val params: Paramss = {
         if (paramss.isEmpty) Seq.empty
         else paramss.head.map(_.copy(mods = Seq(Mod.ValParam()))) +: paramss.tail
       }
@@ -122,23 +120,28 @@ private[anyfin] object constr {
       case other ⇒ abort(s"$other can't be user as a return type")
     }
 
+    def genImplementation(name: String, tparams: TParams, paramss: Paramss) = {
+      val typeVars = tParamsToArgs(tparams)
+      val pArgs    = paramssToArgs(paramss)
+      val ctorCall = Ctor.Ref.Name(name)
+
+      if (tparams.isEmpty) q"new $ctorCall(...$pArgs)"
+      else q"new $ctorCall[..${typeVars}](...$pArgs)"
+    }
+
     dataShape match {
       case q"..$_ object $name extends $retType {}" ⇒
         q"def apply(): ${inferResultType(retType)} = $name"
 
-      case q"..$_ class $name[..$tparams](...$paramss) extends $retType {}" if paramss.length < 1 ⇒
+      case cls: Defn.Class if cls.ctor.paramss.length < 1 ⇒
         // The same requirement to have a param list for classes
         abort("classes without parameter list are not allowed")
 
       case q"..$_ class $name[..$tparams](...$paramss) extends $retType {}" ⇒
-        val normalized = paramss.map(normalize)
-        val impl = {
-          val typeVars = tparams.map(p ⇒ Type.Name(p.name.value))
-          if (tparams.nonEmpty) q"new ${Ctor.Ref.Name(name.value)}[..$typeVars](...${paramssToArgs(paramss)})"
-          else q"new ${Ctor.Ref.Name(name.value)}(...${paramssToArgs(paramss)})"
-        }
+        val params = paramss.map(normalize)
+        val impl   = genImplementation(name.value, tparams, paramss)
 
-        q"def apply[..$tparams](...$normalized): ${inferResultType(retType)} = $impl"
+        q"def apply[..$tparams](...$params): ${inferResultType(retType)} = $impl"
     }
   }
 
@@ -157,35 +160,30 @@ private[anyfin] object constr {
      * @param paramss
      * @return
      */
-    def build(name: String, tparams: Seq[Type.Param], paramss: Paramss): Defn.Def = {
-      def template(ifBranch: Term = Term.Name("None"), elseBranch: Term) = {
-        val shapeType = {
-          if (tparams.isEmpty) Type.Name(name)
-          else Type.Apply(Type.Name(name), tparams.map(p ⇒ Type.Name(p.name.value)))
-        }
-        q"def unapply[..$tparams](shape: $shapeType) = if (shape == null) $ifBranch else $elseBranch"
-      }
-        
-
-      val fieldCalls = paramss match {
-        case Seq() ⇒ Seq.empty
-        case Seq(head, _*) ⇒
-          head.map(field ⇒ q"shape.${Term.Name(field.name.value)}")
-      }
-
-      if (fieldCalls.length > 1)
-        template(elseBranch = q"Some(${Term.Tuple(fieldCalls)})")
-      else if (fieldCalls.length == 1)
-        template(elseBranch = q"Some(${fieldCalls.head})")
-      else template(q"false", q"true")
-    }
+    // def build (name: String, tparams: Seq[Type.Param], paramss: Paramss): Defn.Def = {
+      
+    // }
 
     dataShape match {
       case obj: Defn.Object ⇒ None
       case q"..$_ class $name[..$tparams](...$paramss) extends $dataType {}" if paramss.length < 1 ⇒
         abort("classes without parameter list are not allowed")
       case q"..$_ class $name[..$tparams](...$paramss) extends $dataType {}" ⇒
-        Some(build(name.value, tparams, paramss))
+        def template (ifBranch: Term = Term.Name("None"), elseBranch: Term): Option[Defn.Def] = {
+          val shapeType: Type = if (tparams.isEmpty) name else t"$name[..${ tParamsToArgs(tparams)}]"
+          Some(q"def unapply[..$tparams](shape: $shapeType) = if (shape == null) $ifBranch else $elseBranch")
+        }
+        
+        val fieldCalls: Seq[Term.Select] = {
+          if (paramss.isEmpty) Seq.empty
+          else paramss.head.map(field ⇒ q"shape.${Term.Name(field.name.value)}")
+        }
+
+        if (fieldCalls.length > 1)
+          template(elseBranch = q"Some(${Term.Tuple(fieldCalls)})")
+        else if (fieldCalls.length == 1)
+          template(elseBranch = q"Some(${fieldCalls.head})")
+        else template(q"false", q"true")
     }
   }
 }
