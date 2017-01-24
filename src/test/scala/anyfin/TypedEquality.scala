@@ -33,6 +33,20 @@ abstract class TypedEquality[A: ClassTag] extends Equality[A] {
 }
 
 object Equalities {
+
+  implicit def OptionEquality[T](implicit Eq: TypedEquality[T]): TypedEquality[Option[T]] = {
+    new TypedEquality[Option[T]] {
+      override def checkEqual(left: Option[T], right: Option[T]): Boolean = {
+        (left, right) match {
+          case (None, None) => true
+          case (_, None) | (None, _) => false
+          case (Some(l), Some(r)) => Eq.checkEqual(l, r)
+        }
+      }
+    }
+  }
+
+
   implicit def SeqEquality[T](implicit Eq: TypedEquality[T]): TypedEquality[Seq[T]] = {
     new TypedEquality[Seq[T]] {
       override def checkEqual (left: Seq[T], right: Seq[T]): Boolean = {
