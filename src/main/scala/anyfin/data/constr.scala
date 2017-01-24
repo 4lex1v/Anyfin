@@ -192,6 +192,8 @@ object constr {
 
     dataShape match {
       case obj: Defn.Object ⇒ None
+      case q"..$_ class $name[..$tparams](...$paramss) extends $dataType {}" if paramss.length < 1 ⇒
+        abort("classes without parameter list are not allowed")
       case q"..$_ class $name[..$tparams](...$paramss) extends $dataType {}" ⇒
         Some(build(name.value, tparams, paramss))
     }
