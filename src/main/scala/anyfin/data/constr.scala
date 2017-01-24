@@ -1,5 +1,7 @@
 package anyfin.data
 
+import anyfin.utils.TypeFuncs.paramssToArgs
+
 import scala.annotation.{StaticAnnotation, compileTimeOnly}
 import scala.collection.immutable.Seq
 import scala.meta._
@@ -16,133 +18,157 @@ import scala.meta._
  *   }
  * }}}
  */
-@compileTimeOnly("@constr[T] expansion failed. Please check that the Paradise plugin enabled.")
+@compileTimeOnly("@constr expansion failed. Please check that the Paradise plugin enabled.")
 class constr extends StaticAnnotation {
-
-  /**
-   * @param funcDecl annotated function declaration (abstract function without body)
-   * @return
-   */
-  inline def apply(funcDecl: Any): Any = meta { constr.expand(funcDecl) }
-
+  inline def apply(tree: Any): Any = meta {
+    tree match {
+      case funcDecl: Decl.Def ⇒
+        constr.expand(funcDecl)
+      case other ⇒
+        abort("@constr annotation can be used with function declarations only")
+    }
+  }
 }
 
 object constr {
+
+  /** TYPE ALIASES */
+  type TParams = Seq[Type.Param]
+  type Paramss = Seq[Seq[Term.Param]]
 
   /**
    * @param funcDecl
    * @return
    */
-  def expand(funcDecl: Any): Defn.Object = {
-    funcDecl match {
-      case Decl.Def(mods, fName @ Term.Name(name), tparams, paramss, retType) ⇒
-        if (mods.nonEmpty) abort("modifiers not allowed")
+  def expand (funcDecl: Decl.Def): Defn.Object = {
+    import funcDecl.{mods, name, decltpe ⇒ retType}
 
-        // generate object with a private class as a shape, apply and unapply functions
-        // generate: module, inner private class, apply, unapply
+    if (mods.nonEmpty)
+      abort(mods.head.pos, "@constr annotation doesn't support modifiers")
 
-        val mangledName = "$constr$" + name
+    /**
+     * The return type of our "data constructor" will be used as a "data type". To some
+     * extent it corresponds to the way we build ADT's in Scala, e.g:
+     *
+     * {{{
+     *   trait Option[A]
+     *   case class Some[A](value: A) extends Option[A]
+     * }}}
+     *
+     * In the snippet above, case class definition corresponds to the following function
+     * signature:
+     *
+     * {{{
+     *   @constr def Some[A](value: A): Option[A]
+     * }}}
+     */
+    val dataType = inferDataType(retType)
 
-        /** GENERATING DATATYPE'S SHAPE*/
+    // Internally class or object
+    val dataShape = genDataShape("$constr$" + name, funcDecl, dataType)
 
-        // Used as a parent type.
-        val dataType = retType match {
-          case Type.Name(name) ⇒ Term.Apply(Ctor.Ref.Name(name), Seq.empty)
-          case Type.Apply(constr, args) ⇒ Term.ApplyType(Ctor.Ref.Name(constr.toString()), args)
-        }
+    // Apply function
+    val constructor = genDataConstructor(dataShape)
 
-        val MONKEY: Stat = {
-          if (tparams.isEmpty && paramss.isEmpty) {
-            /** GENERATE OBJECT-BASED SHAPE */
-            val objectName = Term.Name(mangledName)
-            q"private object $objectName extends $dataType {}"
-          } else {
-            /** GENERATE CLASS-BASED SHAPE */
+    // Unapply function
+    val deconstructor = genDataDeconstructor(dataShape)
 
-            // Similar to case classes we need to make params from the first parameters list
-            // declared as `val`'s to be available during decostruction.
-
-            val pubParams = {
-              if (paramss.isEmpty) Seq.empty
-              else {
-                val h = paramss.head.map(_.copy(mods = Seq(Mod.ValParam())))
-                h +: paramss.tail
-              }
-            }
-
-            val className = Type.Name(mangledName)
-            q"private final class ${className}[..$tparams](...$pubParams) extends $dataType {}"
-          }
-        }
-
-        /** GENERATING CONSTRUCTOR */
-        val tps = tparams.map(p ⇒ Type.Name(p.name.value))
-
-        val ctorName      = Ctor.Ref.Name(mangledName)
-        val classCtorCall = {
-          if (tps.nonEmpty) q"new $ctorName[..$tps](...${constr.paramssToArgs(paramss)})"
-          else q"new $ctorName(...${constr.paramssToArgs(paramss)})"
-        }
-        val APPLY = MONKEY match {
-          case cls: Defn.Class =>
-            Defn.Def(mods, Term.Name("apply"), tparams, paramss, Some(retType), classCtorCall)
-          case obj: Defn.Object =>
-            Defn.Def(mods, Term.Name("apply"), tparams, paramss, Some(retType), Term.Name(mangledName))
-        }
-
-        MONKEY match {
-          case obj: Defn.Object =>
-            q"object $fName { $MONKEY; $APPLY }"
-          case cls: Defn.Class =>
-            val UNAPPLY = constr.genUnapply(cls)
-            q"object $fName { $MONKEY; $UNAPPLY; $APPLY }"
-        }
-      case other ⇒
-        abort(s"@constr annotation can be applied to functions only, got: $other")
-    }
+    q"object $name { ${Term.Block(Seq(dataShape, constructor) ++ deconstructor)} }"
   }
 
   /**
-   * Convenient way to convert parameters into arguments
-   *
-   * @param paramss
-   */
-  def paramssToArgs(paramss: Seq[Seq[Term.Param]]): Seq[Seq[Term.Arg]] = {
-    paramss.map(_.map(p => Term.Name(p.name.value)))
-  }
-
-  /**
-   * @param cls
+   * @param retType
    * @return
    */
-  def genUnapply(cls: Defn.Class): Defn.Def = {
-    val paramName = Term.fresh("x")
-
-    val cparamt = if (cls.tparams.nonEmpty) Type.Apply(cls.name, cls.tparams.map(x ⇒ Type.Name(x.name.value))) else cls.name
-
-    val cparam = Term.Param(Seq.empty, paramName, Some(cparamt), None)
-
-    val fieldCalls = unapplier.monkey(paramName, cls)
-
-    if (fieldCalls.length > 1) {
-      val elsetree = q"Some(${Term.Tuple(fieldCalls)})"
-      q"def unapply[..${cls.tparams}]($cparam) = if ($paramName == null) None else $elsetree"
-    } else if (fieldCalls.length == 1) {
-      val elsetree = q"Some(${fieldCalls.head})"
-      q"def unapply[..${cls.tparams}]($cparam) = if ($paramName == null) None else $elsetree"
-    } else {
-      q"def unapply[..${cls.tparams}]($cparam) = if ($paramName == null) false else true"
-    }
+  def inferDataType (retType: Type): Ctor.Call = retType match {
+    case Type.Apply(constr, args) ⇒ Term.ApplyType(Ctor.Ref.Name(constr.toString()), args)
+    case Type.Name(name) ⇒ Term.Apply(Ctor.Ref.Name(name), Seq.empty)
+    case other ⇒ abort(s"$other can't be used as a return type for data constructor")
   }
 
-  private object unapplier {
-    def monkey(name: Term.Name, cls: Defn.Class): Seq[Term.Select] = {
-      if (cls.ctor.paramss.isEmpty) Seq.empty
-      else {
-        val fields = cls.ctor.paramss.head.map { _.name }
-        fields.map { fieldName ⇒ Term.Select(name, Term.Name(fieldName.value)) }
+  /**
+   * @param decl
+   * @return
+   */
+  def genDataShape(name: String, decl: Decl.Def, dataType: Ctor.Call): Stat = {
+    import decl.{paramss, tparams, decltpe ⇒ retType}
+
+    // If declaration has no type variables and parameterless, generate simple object
+    if (tparams.isEmpty && paramss.isEmpty)
+      q"private object ${Term.Name(name)} extends $dataType {}"
+    else {
+      // Simulate "case class" behaviour
+      val params = {
+        if (paramss.isEmpty) Seq.empty
+        else paramss.head.map(_.copy(mods = Seq(Mod.ValParam()))) +: paramss.tail
       }
+
+      q"private final class ${Type.Name(name)}[..$tparams](...$params) extends $dataType {}"
     }
   }
 
+  /**
+   * @param dataShape
+   * @return
+   */
+  def genDataConstructor (dataShape: Stat): Defn.Def = {
+
+    /**
+     * @param ctorName
+     * @param tparams
+     * @param paramss
+     * @return
+     */
+    def build (ctorName: Ctor.Call, tparams: TParams, paramss: Paramss): Term.New = {
+      val typeVars = tparams.map(p ⇒ Type.Name(p.name.value))
+      q"new $ctorName[..$typeVars](...${paramssToArgs(paramss)})"
+    }
+
+    dataShape match {
+      case q"..$_ object $_ extends $retType {}" ⇒ q"def apply() = ${build(retType, Seq.empty, Seq.empty)}"
+      case q"..$_ class $_[..$tparams](...$paramss) extends $retType {}" ⇒
+        q"def apply[..$tparams](...$paramss) = ${build(retType, tparams, paramss)}"
+    }
+  }
+
+  /**
+   * @param dataShape
+   * @return
+   */
+  def genDataDeconstructor (dataShape: Stat): Option[Defn.Def] = {
+
+    /**
+     *
+     * TODO :: Instead of inferring unapply's return type, build it manually
+     *
+     * @param name
+     * @param tparams
+     * @param paramss
+     * @return
+     */
+    def build(name: String, tparams: Seq[Type.Param], paramss: Paramss): Defn.Def = {
+      val paramName = Term.Name("shape")
+
+      val fieldCalls = paramss match {
+        case Seq() ⇒ Seq.empty
+        case Seq(head, _*) ⇒
+          head.map(field ⇒ q"name.${Term.Name(field.name.value)}")
+      }
+
+      def template(elseBranch: Term) =
+        q"def unapply[..$tparams](shape: ${Type.Name(name)}) = if ($paramName == null) None else $elseBranch"
+
+      if (fieldCalls.length > 1)
+        template(q"Some(${Term.Tuple(fieldCalls)})")
+      else if (fieldCalls.length == 1)
+        template(q"Some(${fieldCalls.head})")
+      else template(q"true")
+    }
+
+    dataShape match {
+      case obj: Defn.Object ⇒ None
+      case q"..$_ class $name[..$tparams](...$paramss) extends $dataType {}" ⇒
+        Some(build(name.value, tparams, paramss))
+    }
+  }
 }
