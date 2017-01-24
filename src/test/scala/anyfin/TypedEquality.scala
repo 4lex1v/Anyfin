@@ -1,8 +1,8 @@
 package anyfin
 
 import org.scalactic.Equality
-
-import scala.meta.Type
+import scala.collection.immutable.Seq
+import scala.meta.{Tree, Type}
 import scala.reflect.ClassTag
 
 abstract class TypedEquality[A: ClassTag] extends Equality[A] {
@@ -30,9 +30,10 @@ object Equalities {
     }
   }
 
-  implicit object TypeEquality extends TypedEquality[Type] {
-    override def checkEqual (left: Type, right: Type): Boolean = {
-      left.structure == right.structure
+  implicit def TreeEquality[T <: Tree: ClassTag]: TypedEquality[T] = {
+    new TypedEquality[T] {
+      override def checkEqual (left: T, right: T) = left.structure == right.structure
     }
   }
+
 }

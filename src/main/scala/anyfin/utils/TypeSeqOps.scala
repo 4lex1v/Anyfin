@@ -2,6 +2,7 @@ package anyfin.utils
 
 import scala.meta.Type
 import scala.collection.mutable
+import scala.collection.immutable.Seq
 import scala.meta._
 
 object TypeSeqOps {
