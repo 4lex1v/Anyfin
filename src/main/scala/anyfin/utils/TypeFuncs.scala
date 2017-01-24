@@ -56,8 +56,11 @@ object TypeFuncs {
    *
    * @param paramss
    */
-  def paramssToArgs(paramss: Seq[Seq[Term.Param]]): Seq[Seq[Term.Arg]] = {
+  def paramssToArgs (paramss: Seq[Seq[Term.Param]]): Seq[Seq[Term.Arg]] = {
     paramss.map(_.map(p => Term.Name(p.name.value)))
   }
+
+  def tParamsToArgs (tparams: Seq[Type.Param]): Seq[Type] =
+    tparams.map(p ⇒ Type.Name(p.name.value))
 
 }
