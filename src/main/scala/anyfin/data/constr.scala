@@ -23,16 +23,45 @@ import scala.collection.immutable.Seq
 import scala.meta._
 
 /**
- * Example:
+ * Constructor annotation - transforms function declaration into data type constructor.
+ *
+ * In Haskell, data type (i.e ADT) is defined in term of its constructors, e.g:
  *
  * {{{
- *   sealed trait SystemCall[A]
- *   object SomeType {
- *     @constr def FinaWindow (app: Application): SystemCall[Option[Window]]
- *     @constr def Snapshot   (window: Window)  : SystemCall[Frame]
- *     @constr def Foo[A]     (value: A)        : SystemCall[A]
- *   }
+ *   data Maybe a = Empty | Just a
  * }}}
+ *
+ * In the snippet above `Nothing` and `Just` a data constructors, simple functions.
+ * The canonical version of the same ADT in Scala would looks this way:
+ *
+ * {{{
+ *   sealed trait Maybe[+A]
+ *   final case class Just[A](value: A) extends Maybe[A]
+ *   case object Empty extends Maybe[Nothing]
+ * }}}
+ *
+ * The definition above has multiple drawbacks, which may cause undesired behavious or
+ * usage of the data type. E.g:
+ *
+ * {{{
+ *   scala> val s = Some(1)
+ *   s: Some[Int] = Some(1) // not Option[Int]
+ * }}}
+ *
+ * There are multiple approaches to fix this, these can be found in projects like
+ * [[https://github.com/scalaz/scalaz Scalaz]], [[https://github.com/typelevel/cats Cats]],
+ * [[https://github.com/functional-streams-for-scala/fs2 FS2]] and others. Unfortunately,
+ * using standard Scala constructs won't enable this level of control.
+ *
+ * `@constr` annotation should fix this, or at least hide all the corner cases from the end user.
+ * The annotation can be applied to function declaration:
+ *
+ * {{{
+ *   @constr def Just[A](value: A): Maybe[A]
+ * }}}
+ *
+ * Following the Haskell's representation, publicly it's just a data constructor with a corresponding
+ * deconstructor, which can be used in pattern matching. 
  */
 @compileTimeOnly("@constr expansion failed. Please check that the Paradise plugin enabled.")
 class constr extends StaticAnnotation {
@@ -51,8 +80,12 @@ private[anyfin] object constr {
   type Paramss = Seq[Seq[Term.Param]]
 
   /**
-   * @param funcDecl
-   * @return
+   * Internal implementation for [[constr]] annotation.
+   *
+   * Generates required (de)constructor with the corresponding data shape.
+   * 
+   * @param funcDecl declaration used to generate data (de)constructor
+   * @return object that encapsulates generated (de)constructor
    */
   def expand (funcDecl: Decl.Def): Defn.Object = {
     val q"..$mods def $name[..$tparams](...$paramss): $retType" = funcDecl
@@ -75,6 +108,9 @@ private[anyfin] object constr {
      * {{{
      *   @constr def Some[A](value: A): Option[A]
      * }}}
+     *
+     * NOTE :: At this point there's no way to constraint the result type, i.e it can be anything,
+     *         including complete gibberish or final classes (e.g `String`). Waiting for Scalameta 2.0
      */
     val dataType = inferDataType(retType)
 
@@ -91,8 +127,10 @@ private[anyfin] object constr {
   }
 
   /**
-   * @param retType
-   * @return
+   * Infers the "data type" from the declaration's return type.
+   * 
+   * @param retType declared return type
+   * @return infered parent "data type"
    */
   def inferDataType (retType: Type): Ctor.Call = retType match {
     case Type.Apply(constr, args) ⇒ Term.ApplyType(Ctor.Ref.Name(constr.toString()), args)
@@ -101,8 +139,12 @@ private[anyfin] object constr {
   }
 
   /**
-   * @param decl
-   * @return
+   * Using the data provided generate the corresponding data constructor.
+   *
+   * NOTE :: If the declaration has no type parameters or parameter lists, it's possible to use
+   *         object as a shape, otherwise class is generated
+   * 
+   * @return "data shape" implementated in terms of an object or a class
    */
   def genDataShape (name: String, tparams: TParams, paramss: Paramss, dataType: Ctor.Call): Stat = {
     // If declaration has no type variables and parameterless, generate simple object
@@ -120,8 +162,10 @@ private[anyfin] object constr {
   }
 
   /**
-   * @param dataShape
-   * @return
+   * Data constructor (i.e `apply` function) generator.
+   * 
+   * @param dataShape object or class definition
+   * @return generated `apply` function
    */
   def genDataConstructor (dataShape: Stat): Defn.Def = {
     def normalize (params: Seq[Term.Param]): Seq[Term.Param] = {
@@ -162,20 +206,12 @@ private[anyfin] object constr {
   }
 
   /**
-   * @param dataShape
-   * @return
+   * Data deconstructor (i.e `unapply` function) generator.
+   * 
+   * @param dataShape object or class definition
+   * @return generated `unapply` function
    */
   def genDataDeconstructor (dataShape: Stat): Option[Defn.Def] = {
-
-    /**
-     *
-     * TODO :: Instead of inferring unapply's return type, build it manually
-     *
-     * @param name
-     * @param tparams
-     * @param paramss
-     * @return
-     */
     dataShape match {
       case obj: Defn.Object ⇒ None
       case q"..$_ class $name[..$tparams](...$paramss) extends $dataType {}" if paramss.length < 1 ⇒
