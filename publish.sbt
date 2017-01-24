@@ -1,3 +1,10 @@
+import de.heikoseeberger.sbtheader.license.Apache2_0
+
+// License information
+headers := Map(
+  "scala" -> Apache2_0("2017", "Aleksandr Ivanov"),
+  "conf" -> Apache2_0("2017", "Aleksandr Ivanov", "#")
+)
 
 // Release configuration
 releaseIgnoreUntrackedFiles := true
