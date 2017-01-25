@@ -1,4 +1,2 @@
-* Purity Module
+* Anyfin
   Improving FP experience with Metaprogramming
-
-** Content

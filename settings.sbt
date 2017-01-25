@@ -1,6 +1,6 @@
 import scala.Console.{GREEN, RESET}
 
-name        := "Purity"
+name        := "Anyfin"
 description := "Improving FP experience with Metaprogramming"
 
 scalaVersion := "2.11.8"

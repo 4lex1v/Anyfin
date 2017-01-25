@@ -1,8 +1,8 @@
-package purity
+package anyfin.data
 
 import scala.annotation.{StaticAnnotation, compileTimeOnly}
-import scala.meta._
 import scala.collection.immutable.Seq
+import scala.meta._
 
 /**
  * Example:
@@ -23,7 +23,17 @@ class constr extends StaticAnnotation {
    * @param funcDecl annotated function declaration (abstract function without body)
    * @return
    */
-  inline def apply(funcDecl: Any): Any = meta {
+  inline def apply(funcDecl: Any): Any = meta { constr.expand(funcDecl) }
+
+}
+
+object constr {
+
+  /**
+   * @param funcDecl
+   * @return
+   */
+  def expand(funcDecl: Any): Defn.Object = {
     funcDecl match {
       case Decl.Def(mods, fName @ Term.Name(name), tparams, paramss, retType) ⇒
         if (mods.nonEmpty) abort("modifiers not allowed")
@@ -87,23 +97,24 @@ class constr extends StaticAnnotation {
             val UNAPPLY = constr.genUnapply(cls)
             q"object $fName { $MONKEY; $UNAPPLY; $APPLY }"
         }
-
       case other ⇒
         abort(s"@constr annotation can be applied to functions only, got: $other")
     }
   }
 
-}
-
-object constr {
-
   /**
    * Convenient way to convert parameters into arguments
+   *
+   * @param paramss
    */
   def paramssToArgs(paramss: Seq[Seq[Term.Param]]): Seq[Seq[Term.Arg]] = {
     paramss.map(_.map(p => Term.Name(p.name.value)))
   }
 
+  /**
+   * @param cls
+   * @return
+   */
   def genUnapply(cls: Defn.Class): Defn.Def = {
     val paramName = Term.fresh("x")
 
