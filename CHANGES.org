@@ -2,8 +2,8 @@
 #+BEGIN_QUOTE
 27 January 2017
 #+END_QUOTE
+ - [[https://github.com/4lex1v/anyfin/pull/8][#8]] Adds Examples to the project
  - [[https://github.com/4lex1v/anyfin/pull/9][#9]] Fixes the broken build by inlining the generated code within the body
-
 
 * Version 0.1.0 (Broken)
 #+BEGIN_QUOTE
