@@ -18,7 +18,7 @@
 
    #+BEGIN_SRC scala
    resolvers += Resolver.jcenterRepo
-   libraryDependencies += "io.github.4lex1v" % "anyfin" % "0.1.0"
+   libraryDependencies += "io.github.4lex1v" % "anyfin" % "0.1.1"
    #+END_SRC
 
    
