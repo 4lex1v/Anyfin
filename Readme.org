@@ -6,5 +6,20 @@
 ** Overview
    *Anyfin* is a library which provides annotations to help you build solid, functional code.
 
-*** The Purpose
-    To bring powerfull constraints inspired by the Haskell language into Scala.
+** Getting Started
+   Anyfin's macro annotations require [[https://github.com/scalameta/paradise][Paradise]] v3+ compiler plugin:
+
+   #+BEGIN_SRC scala
+   resolvers += Resolver.url("scalameta", url("http://dl.bintray.com/scalameta/maven"))(Resolver.ivyStylePatterns)
+   addCompilerPlugin("org.scalameta" %% "paradise" % "3.0.0.152" cross CrossVersion.full)
+   #+END_SRC
+
+   The library itself is hosted on jCenter:
+
+   #+BEGIN_SRC scala
+   resolvers += Resolver.jcenterRepo
+   libraryDependencies += "io.github.4lex1v" % "anyfin" % "0.1.0"
+   #+END_SRC
+
+   
+
