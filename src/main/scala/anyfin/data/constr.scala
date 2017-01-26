@@ -123,7 +123,7 @@ private[anyfin] object constr {
     // Unapply function
     val deconstructor = genDataDeconstructor(dataShape)
 
-    q"object $name { ${Term.Block(Seq(dataShape, constructor) ++ deconstructor)} }"
+    q"object $name { ..${Seq(dataShape, constructor) ++ deconstructor} }"
   }
 
   /**
