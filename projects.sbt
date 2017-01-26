@@ -13,3 +13,5 @@ lazy val Anyfin = project.in(file(".")).
     )
   )
 
+lazy val Examples = project.in(file("./Examples")).dependsOn(Anyfin)
+
