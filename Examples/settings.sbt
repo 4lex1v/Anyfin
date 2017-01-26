@@ -1,0 +1,3 @@
+publish         := ()
+publishLocal    := ()
+publishArtifact := false
