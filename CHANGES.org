@@ -1,7 +1,14 @@
-* Version 0.1.0
+* Version 0.1.1
+#+BEGIN_QUOTE
+27 January 2017
+#+END_QUOTE
+ - [[https://github.com/4lex1v/anyfin/pull/9][#9]] Fixes the broken build by inlining the generated code within the body
+
+
+* Version 0.1.0 (Broken)
 #+BEGIN_QUOTE
 25 January 2017
 #+END_QUOTE
 
-This is the first usable version that introduces the first basic annotation: =@constr=. 
+This is the first version that introduces the first basic annotation: =@constr=. 
 
