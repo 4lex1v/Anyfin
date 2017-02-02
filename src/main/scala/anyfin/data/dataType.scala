@@ -6,14 +6,14 @@ import scala.meta._
 import anyfin.utils.TypeFuncs
 
 final class dataType(strict: Boolean = true) extends StaticAnnotation {
-  import dataType.{expand, parseAnnotationMode}
-  inline def apply(tree: Any) = meta {
+  inline def apply(tree: Any): Any = meta {
+    val mode = dataType.parseAnnotationMode(this)
     tree match {
       case trt: Defn.Trait =>
-        expand(parseAnnotationMode(this), trt)
+        dataType.expand(mode, trt)
 
       case Term.Block(Seq(trt: Defn.Trait, obj: Defn.Object)) =>
-        expand(parseAnnotationMode(this), trt, Some(obj))
+        dataType.expand(mode, trt, Some(obj))
 
       case other =>
         abort("@dataType annotation can be used with traits only")
@@ -44,7 +44,12 @@ object dataType {
 
     Term.Block(Seq(
       q"sealed trait $name[..$tparams] extends ..$parents { ..$body }",
-      q"object ${Term.Name(name.value)} { ..${constructors.map(constr.expand)} }"
+      q"""
+         object ${Term.Name(name.value)} {
+           ..${constructors.map(constr.expand)}
+           ..${companion.flatMap(_.templ.stats).getOrElse(Seq.empty)}
+         }
+       """
     ))
   }
 
