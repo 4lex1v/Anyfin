@@ -80,11 +80,9 @@ object dataType {
   ): (Seq[Stat], Seq[Decl.Def]) = {
     bodyStats.foldLeft((Seq.empty[Stat], Seq.empty[Decl.Def])) {
 
-      /**
-       * In 'strict' mode [[dataType]] support only `def` declarations, otherwise we can mix
-       * declarations and definitions with data constructors, in which case all constructor
-       * declarations must be annotated with `@constr`.
-       */
+      // In 'strict' mode [[dataType]] support only `def` declarations, otherwise we can mix
+      // declarations and definitions with data constructors, in which case all constructor
+      // declarations must be annotated with `@constr`.
       case ((bodyAcc, constrAcc), func: Decl.Def) =>
         // In 'strict' mode `@constr` is not required
         // All def decls are constructors
