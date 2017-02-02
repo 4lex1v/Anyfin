@@ -1,11 +1,27 @@
+/*
+ * Copyright 2017 Aleksandr Ivanov
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package anyfin.data
 
 import scala.annotation.StaticAnnotation
 import scala.collection.immutable.Seq
 import scala.meta._
-import anyfin.utils.TypeFuncs
+import anyfin.utils.TypeFuncs._
 
-final class dataType(strict: Boolean = true) extends StaticAnnotation {
+final class dataType (strict: Boolean = true) extends StaticAnnotation {
   inline def apply(tree: Any): Any = meta {
     val mode = dataType.parseAnnotationMode(this)
     tree match {
@@ -58,16 +74,25 @@ object dataType {
    * @param isInStrictMode
    * @param bodyStats
    */
-  def extractDataConstructors (bodyStats: Seq[Stat], isInStrictMode: Boolean): (Seq[Stat], Seq[Decl.Def]) = {
+  def extractDataConstructors (
+         bodyStats: Seq[Stat],
+    isInStrictMode: Boolean
+  ): (Seq[Stat], Seq[Decl.Def]) = {
     bodyStats.foldLeft((Seq.empty[Stat], Seq.empty[Decl.Def])) {
+
+      /**
+       * In 'strict' mode [[dataType]] support only `def` declarations, otherwise we can mix
+       * declarations and definitions with data constructors, in which case all constructor
+       * declarations must be annotated with `@constr`.
+       */
       case ((bodyAcc, constrAcc), func: Decl.Def) =>
-        if (isInStrictMode) (Seq.empty, func +: constrAcc)
-        else if (TypeFuncs.annotatedWith(func.mods, "constr"))
-          (bodyAcc, func +: constrAcc)
-        else (func +: bodyAcc, constrAcc)
+        // In 'strict' mode `@constr` is not required
+        // All def decls are constructors
+        if (isInStrictMode || func.isAnnotatedWith("constr")) (bodyAcc, constrAcc :+ func)
+        else abort("Def declarations must be annotation with '@constr'")
 
       case ((bodyAcc, constrAcc), stat) =>
-        if (!isInStrictMode) (stat +: bodyAcc, constrAcc)
+        if (!isInStrictMode) (bodyAcc :+ stat, constrAcc)
         else abort("Only function declarations are allowed")
     }
   }
