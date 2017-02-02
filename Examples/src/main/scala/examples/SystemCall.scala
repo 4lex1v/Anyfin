@@ -2,10 +2,11 @@ package examples
 
 import anyfin.data._
 
-sealed trait SystemCall[A]
+@dataType trait SystemCall[A] {
+  def PrintLine (value: String): SystemCall[Unit]
+  def ReadLine: SystemCall[String]
+}
 
 object SystemCall {
-  @constr def ReadLine: SystemCall[String]
-  @constr def PrintLine (value: String): SystemCall[Unit]
   @constr def Signal (process: Int, signal: Int): SystemCall[Unit]
 }
