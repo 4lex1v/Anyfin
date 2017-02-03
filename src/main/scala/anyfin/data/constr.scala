@@ -16,7 +16,7 @@
 
 package anyfin.data
 
-import anyfin.utils.TypeFuncs.{paramssToArgs, tParamsToArgs}
+import anyfin.utils.TypeFuncs.{paramssToArgs, tParamsToArgs, paramssTypes}
 
 import scala.annotation.{StaticAnnotation, compileTimeOnly}
 import scala.collection.immutable.Seq
@@ -215,11 +215,24 @@ private[anyfin] object constr {
     dataShape match {
       case obj: Defn.Object ⇒ None
       case q"..$_ class $name[..$tparams](...$paramss) extends $dataType {}" if paramss.length < 1 ⇒
+        // TODO :: this should be fixed... on a separate branch?
         abort("classes without parameter list are not allowed")
       case q"..$_ class $name[..$tparams](...$paramss) extends $dataType {}" ⇒
+        val unapplyRetType = paramss match {
+          case Seq() => Type.Name("Boolean")
+          case Seq(head, _*) if head.length == 1 =>
+            t"Option[${paramssTypes(head).head}]"
+          case Seq(head, _*) =>
+            t"Option[${Type.Tuple(paramssTypes(head))}]"
+        }
+
         def template (ifBranch: Term = Term.Name("None"), elseBranch: Term): Option[Defn.Def] = {
           val shapeType: Type = if (tparams.isEmpty) name else t"$name[..${ tParamsToArgs(tparams)}]"
-          Some(q"def unapply[..$tparams](shape: $shapeType) = if (shape == null) $ifBranch else $elseBranch")
+          Some {
+            q"""def unapply[..$tparams](shape: $shapeType): $unapplyRetType =
+                  if (shape == null) $ifBranch else $elseBranch
+             """
+          }
         }
         
         val fieldCalls: Seq[Term.Select] = {
