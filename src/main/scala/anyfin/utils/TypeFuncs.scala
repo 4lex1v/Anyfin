@@ -65,7 +65,7 @@ object TypeFuncs {
 
   def paramssTypes (paramss: Seq[Term.Param]): Seq[Type] =
     paramss.collect {
-      case Term.Param(_, _, Some(tpe: Type.Name), _) => tpe
+      case Term.Param(_, _, Some(tpe: Type), _) => tpe
     }
 
 }
