@@ -116,29 +116,31 @@ class constrSpec extends WordSpec with Matchers {
 
     "generate simple deconstructor for parameterless class" in {
       val deconstr = genDataDeconstructor(q"class Snapshot() extends Something {}")
-      deconstr shouldEqual Some(q"def unapply(shape: Snapshot) = if (shape == null) false else true")
+      deconstr shouldEqual Some(q"def unapply(shape: Snapshot): Boolean = if (shape == null) false else true")
     }
 
     "generate proper deconstructor for a 'class' with a single fields" in {
       val deconstr = genDataDeconstructor(q"class Person(name: String) extends Human {}")
-      deconstr shouldEqual Some(q"def unapply(shape: Person) = if (shape == null) None else Some(shape.name)")
+      deconstr shouldEqual Some(q"def unapply(shape: Person): Option[String] = if (shape == null) None else Some(shape.name)")
     }
 
     "generate proper deconstructor for a 'class' with multiple fields" in {
       val deconstr = genDataDeconstructor(q"class Person(name: String, age: Int, addr: Address) extends Human {}")
       val elseBranch = q"Some((shape.name, shape.age, shape.addr))"
-      deconstr shouldEqual Some(q"def unapply(shape: Person) = if (shape == null) None else $elseBranch")
+      val retType = t"Option[(String, Int, Address)]"
+      deconstr shouldEqual Some(q"def unapply(shape: Person): $retType = if (shape == null) None else $elseBranch")
     }
 
     "generate deconstructor with type variable" in {
       val deconstr = genDataDeconstructor(q"class Foo[A]() extends Bar[A] {}")
-      deconstr shouldEqual Some(q"def unapply[A](shape: Foo[A]) = if (shape == null) false else true")
+      deconstr shouldEqual Some(q"def unapply[A](shape: Foo[A]): Boolean = if (shape == null) false else true")
     }
 
     "generate deconstructor with mutltiple type variables and type parameters" in {
-      val deconstr = genDataDeconstructor(q"class Foo[F[_, _], A](value: F[A], cont: A) extends Bar[F[A], A] {}")
+      val deconstr = genDataDeconstructor(q"class Foo[F[_, _], A](value: F[A, A], cont: A) extends Bar[F[A], A] {}")
       val elseBranch = q"Some((shape.value, shape.cont))"
-      deconstr shouldEqual Some(q"def unapply[F[_, _], A](shape: Foo[F, A]) = if (shape == null) None else $elseBranch")
+      val retType = t"Option[(F[A, A], A)]"
+      deconstr shouldEqual Some(q"def unapply[F[_, _], A](shape: Foo[F, A]): $retType = if (shape == null) None else $elseBranch")
     }
 
   }

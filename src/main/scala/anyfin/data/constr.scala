@@ -219,11 +219,11 @@ private[anyfin] object constr {
         abort("classes without parameter list are not allowed")
       case q"..$_ class $name[..$tparams](...$paramss) extends $dataType {}" ⇒
         val unapplyRetType = paramss match {
-          case Seq() => Type.Name("Boolean")
           case Seq(head, _*) if head.length == 1 =>
             t"Option[${paramssTypes(head).head}]"
-          case Seq(head, _*) =>
+          case Seq(head, _*) if head.length > 1 =>
             t"Option[${Type.Tuple(paramssTypes(head))}]"
+          case _ => Type.Name("Boolean")
         }
 
         def template (ifBranch: Term = Term.Name("None"), elseBranch: Term): Option[Defn.Def] = {
