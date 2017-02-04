@@ -16,10 +16,26 @@
 
 package anyfin.utils
 
+import scala.annotation.tailrec
 import scala.collection.immutable.Seq
 import scala.meta._
 
 object TypeFuncs {
+
+  implicit class FuncDeclOps (decl: Decl.Def) {
+    def isAnnotatedWith (name: String): Boolean = {
+      val cache = Mod.Annot(Ctor.Ref.Name(name))
+      @tailrec def loop(rest: Seq[Mod]): Boolean = {
+        rest match {
+          case Seq() => false
+          case Seq(head, _*) =>
+            if (head.structure == cache.structure) true
+            else loop(rest.tail)
+        }
+      }
+      loop(decl.mods)
+    }
+  }
 
   /**
    * Deconstructs type into its constituents. Example:
@@ -36,19 +52,6 @@ object TypeFuncs {
       case tpe: Type.Name ⇒ Seq(tpe)
       case _ => abort(s"unable to deconstruct type: ${tpe.structure}")
     }
-  }
-
-  def annotatedWith(mods: Seq[Mod], mod: String): Boolean = {
-    val cache = Mod.Annot(Ctor.Ref.Name(mod))
-    def loop(rest: Seq[Mod]): Boolean = {
-      rest match {
-        case Seq() => false
-        case Seq(head, _*) =>
-          if (head.structure == cache.structure) true
-          else loop(rest.tail)
-      }
-    }
-    loop(mods)
   }
 
   /**

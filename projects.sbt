@@ -5,7 +5,7 @@ lazy val Anyfin = project.in(file(".")).
   settings(
     name         := "Anyfin",
     organization := "io.github.4lex1v",
-    description  := "Opinionated way to improving FP experience with Metaprogramming",
+    description  := "Empowering FP in Scala with Metaprogramming",
     headers      := Map("scala" -> Apache2_0("2017", "Aleksandr Ivanov")),
     libraryDependencies ++= Seq(
       "org.scalameta" %% "scalameta" % "1.4.0",
