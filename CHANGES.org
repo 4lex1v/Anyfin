@@ -1,3 +1,10 @@
+* Version 0.1.2
+#+BEGIN_QUOTE
+4 February 2017
+#+END_QUOTE
+ - [[https://github.com/4lex1v/anyfin/pull/10][#10]] Explicit result type for `unapply`
+
+
 * Version 0.1.1
 #+BEGIN_QUOTE
 27 January 2017
