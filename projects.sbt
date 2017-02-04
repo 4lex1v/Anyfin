@@ -10,6 +10,9 @@ lazy val Anyfin = project.in(file(".")).
     libraryDependencies ++= Seq(
       "org.scalameta" %% "scalameta" % "1.4.0",
       "org.scalatest" %% "scalatest" % "3.0.1" % "test"
+    ),
+    mimaPreviousArtifacts := Set(
+      organization.value %% "anyfin" % "0.1.1"
     )
   )
 
