@@ -16,10 +16,10 @@
 
 package anyfin.data
 
+import anyfin.internal.data.DataConstructors
 
 import scala.annotation.{StaticAnnotation, compileTimeOnly}
 import scala.meta._
-import anyfin.internal.data.DataConstructors
 
 /**
  * Constructor annotation - transforms function declaration into data type constructor.

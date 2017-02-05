@@ -2,6 +2,7 @@
  * Common plugins
  */
 addSbtPlugin("de.heikoseeberger" % "sbt-header"    % "1.6.0")
+addSbtPlugin("com.eed3si9n"      % "sbt-assembly"  % "0.14.3")
 
 /**
  * Publishing stuff
