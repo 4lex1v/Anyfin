@@ -20,7 +20,7 @@ import scala.collection.immutable.Seq
 import scala.collection.mutable
 import scala.meta.{Type, _}
 
-object TypeSeqOps {
+private[anyfin] object TypeSeqOps {
 
   /**
    * Since scalameta doesn't have a structural equality, only referential, i.e:

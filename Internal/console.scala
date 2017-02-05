@@ -14,14 +14,12 @@
  * limitations under the License.
  */
 
-package anyfin
+package anyfin.internal
 
-import scala.collection.immutable.Seq
-import scala.meta.{Term, Type}
-
-package object internal {
-
-  type TParams = Seq[Type.Param]
-  type Paramss = Seq[Seq[Term.Param]]
-
+/**
+ * List of mappings to make them available in `sbt console` (due to the
+ * private package scope).
+ */
+object console {
+  val DataConstructors = data.DataConstructors
 }
