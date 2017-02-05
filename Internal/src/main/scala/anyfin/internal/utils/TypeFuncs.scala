@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package anyfin.utils
+package anyfin.internal.utils
 
 import scala.collection.immutable.Seq
 import scala.meta._

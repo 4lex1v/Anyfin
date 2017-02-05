@@ -15,20 +15,25 @@ inThisBuild(Seq(
   shellPrompt := { s => s"$GREEN[${Project.extract(s).currentProject.id}]$RESET >> " }
 ))
 
-lazy val Anyfin = project.in(file(".")).
+lazy val Internal = project.
+  in(file("./Internal")).
+  settings(
+    headers := Map("scala" -> Apache2_0("2017", "Aleksandr Ivanov")),
+    libraryDependencies ++= Seq(
+      "org.scalameta" %% "scalameta" % "1.4.0",
+      "org.scalatest" %% "scalatest" % "3.0.1" % "test"
+    )
+  )
+
+lazy val Library = project.
+  in(file("./Library")).
+  dependsOn(Internal).
   enablePlugins(AutomateHeaderPlugin).
   settings(
     name         := "Anyfin",
     description  := "Opinionated way to improving FP experience with Metaprogramming",
 
     organization := "io.github.4lex1v",
-
-    headers      := Map("scala" -> Apache2_0("2017", "Aleksandr Ivanov")),
-
-    libraryDependencies ++= Seq(
-      "org.scalameta" %% "scalameta" % "1.4.0",
-      "org.scalatest" %% "scalatest" % "3.0.1" % "test"
-    ),
 
     /** Publish settings */
     publishArtifact in Test := false,
@@ -44,4 +49,6 @@ lazy val Anyfin = project.in(file(".")).
     releaseCrossBuild           := true
   )
 
-lazy val Examples = project.in(file("./Examples")).dependsOn(Anyfin)
+lazy val Examples = project.
+  in(file("./Examples")).
+  dependsOn(Library)
