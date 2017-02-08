@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
-package anyfin.utils
+package anyfin.internal
+package utils
 
 import org.scalatest.{Matchers, WordSpec}
-import anyfin.Equalities._
-import anyfin.utils.TypeFuncs._
 import scala.meta._
+
+import TypeFuncs._
+import Equalities._
 
 class TypeFuncsSpec extends WordSpec with Matchers {
   "deconstructType" should {

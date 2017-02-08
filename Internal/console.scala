@@ -14,19 +14,12 @@
  * limitations under the License.
  */
 
-package anyfin
+package anyfin.internal
 
-import scala.meta._
-
-package object utils {
-
-  implicit class OptionFold[A](opt: Option[A]) {
-    def fold[B](none: => B, some: A => B): B = {
-      opt match {
-        case None => none
-        case Some(a) => some(a)
-      }
-    }
-  }
-
+/**
+ * List of mappings to make them available in `sbt console` (due to the
+ * private package scope).
+ */
+object console {
+  val DataConstructors = data.DataConstructors
 }

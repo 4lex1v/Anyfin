@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-package anyfin
+package anyfin.internal
 
 import org.scalactic.Equality
+
 import scala.collection.immutable.Seq
-import scala.meta.{Tree, Type}
+import scala.meta.Tree
 import scala.reflect.ClassTag
 
 abstract class TypedEquality[A: ClassTag] extends Equality[A] {

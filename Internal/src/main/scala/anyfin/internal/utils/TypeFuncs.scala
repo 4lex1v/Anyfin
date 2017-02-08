@@ -14,17 +14,19 @@
  * limitations under the License.
  */
 
-package anyfin.utils
+package anyfin.internal.utils
 
 import scala.collection.immutable.Seq
 import scala.meta._
 
-object TypeFuncs {
+private[anyfin] object TypeFuncs {
 
   /**
    * Deconstructs type into its constituents. Example:
    * {{{ (F[Either[G[A], E]], E) -> Seq(F[_], G[_], A, E) }}}
    *
+   * TODO :: Remove duplicates, i.e:
+   *   {{{ "SystemCall[Either[Option[String], Either[A, Option[Future[List[Int]]]]]]" }}}
    *
    * @param tpe type to be deconstructed
    * @return sequence of constituent types

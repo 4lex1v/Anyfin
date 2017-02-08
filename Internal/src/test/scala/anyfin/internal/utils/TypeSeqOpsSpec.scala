@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
-package anyfin.utils
+package anyfin.internal
+package utils
 
+import anyfin.internal.utils.TypeSeqOps._
 import org.scalatest._
-import TypeSeqOps._
-import anyfin.Equalities._
+
 import scala.meta._
+import Equalities._
 
 class TypeSeqOpsSpec extends WordSpec with Matchers {
 
